@@ -659,5 +659,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 if __name__ == '__main__':
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
+    # Docker sets INSIGHT_HOST=0.0.0.0 so the published port reaches the server; locally it stays on loopback.
+    host = os.environ.get('INSIGHT_HOST', '127.0.0.1')
     print(f'인사이트 서재: http://127.0.0.1:{port}  (종료: Ctrl+C)')
-    ThreadingHTTPServer(('127.0.0.1', port), Handler).serve_forever()
+    ThreadingHTTPServer((host, port), Handler).serve_forever()

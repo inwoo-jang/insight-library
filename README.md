@@ -2,6 +2,19 @@
 
 폴더의 인사이트 Markdown과 참고 PDF를 한곳에서 읽는 개인용 정적 웹사이트입니다.
 
+## 시작하기 (처음 받았을 때)
+
+```sh
+git clone https://github.com/inwoo-jang/insight-library.git
+cd insight-library
+```
+
+- **Mac:** `서재-열기.command` 를 더블클릭한다 (터미널이면 `./서재-열기.command`). 처음 한 번은 필요한 패키지를 설치하느라 조금 걸린다.
+- **Windows:** `서재-열기.bat` 을 더블클릭한다. Python 3 가 설치되어 있어야 한다.
+- 브라우저가 `http://127.0.0.1:8000` 으로 열린다. 창(터미널)을 닫으면 서버도 꺼진다.
+- **AI 초안:** 이 컴퓨터에 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 또는 Codex CLI 가 설치·로그인되어 있으면 상단 **마이페이지**에서 골라 켠다. 없으면 + 로 추가할 때 빈 뼈대만 만든다.
+- 최신 코드·노트 받기: `git pull`. 내가 추가·편집한 노트는 내 컴퓨터에만 남는다(원래 저장소에 올리려면 저장소 권한이 필요하다).
+
 ## 폴더 구조
 
 ```
