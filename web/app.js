@@ -304,30 +304,83 @@ async function openAdd() {
     return;
   }
   $('#add-form').hidden = false;
+  $('#add-source').hidden = true; $('#add-feeds').innerHTML = ''; $('#add-more').hidden = true;
   try {
-    const {sources: list} = await api('/api/sources');
-    let chosen = null;
-    try { chosen = localStorage.getItem('insight-add-source'); } catch (_) { /* optional */ }
-    if (!list.some(s => s.id === chosen)) chosen = list[0]?.id;
-    $('#add-platforms').innerHTML = list.map(s => `<button class="filter" data-source="${escapeHTML(s.id)}">${escapeHTML(s.name)}</button>`).join('');
-    $('#add-feeds').innerHTML = '';
-    if (chosen) loadSource(chosen);
+    const {sources: list, routine} = await api('/api/sources');
+    addSources = list;
+    const groups = [...new Set(list.map(s => s.group || '기타'))];
+    $('#add-platforms').classList.remove('picked');
+    $('#add-platforms').innerHTML = groups.map(g => `<div class="add-group"><h3>${escapeHTML(g)}</h3><div class="filters">${list.filter(s => (s.group || '기타') === g).map(s => `<button class="filter" data-source="${escapeHTML(s.id)}" aria-pressed="false">${escapeHTML(s.name)}${s.type === 'link' ? ' ↗' : ''}</button>`).join('')}</div></div>`).join('')
+      + (routine ? `<div class="routine"><h3>${escapeHTML(routine.title)}</h3><table>${routine.rows.map(r => `<tr><td>${escapeHTML(r.when)}</td><td>${escapeHTML(r.where)}</td><td>${escapeHTML(r.result)}</td></tr>`).join('')}</table><p>${escapeHTML(routine.question)}</p></div>` : '');
   } catch (err) { $('#add-feeds').innerHTML = `<p class="feed-empty">${escapeHTML(err.message)}</p>`; }
 }
-let feedRequest = 0;
-async function loadSource(id) {
-  try { localStorage.setItem('insight-add-source', id); } catch (_) { /* optional */ }
-  document.querySelectorAll('[data-source]').forEach(b => { b.classList.toggle('active', b.dataset.source === id); b.setAttribute('aria-pressed', b.dataset.source === id); });
-  const request = ++feedRequest;
-  $('#add-feeds').innerHTML = `<p class="feed-empty">아직 서재에 없는 글을 찾는 중이에요…${id === 'skax' ? ' (SK AX 는 30초 정도 걸려요)' : ''}</p>`;
-  try {
-    const {sources: [s]} = await api(`/api/feeds?source=${encodeURIComponent(id)}`);
-    if (request !== feedRequest) return;
-    $('#add-feeds').innerHTML = `<section class="feed"><div class="feed-head"><h3>${escapeHTML(s.name)}</h3>${external(s.home, '사이트')}</div>${s.error ? `<p class="feed-empty">불러오지 못했어요: ${escapeHTML(s.error)}</p>` : s.items.length ? s.items.map(i => `<div class="feed-item"><div class="feed-thumb"${i.image ? ` style="background-image:url('${safeURL(i.image)}')"` : ''}></div><div><div class="meta"><time>${escapeHTML(i.date.replaceAll('-', '.'))}</time>${i.category ? `<span class="dot"></span><span>${escapeHTML(i.category)}</span>` : ''}</div><strong>${external(i.url, i.title)}</strong></div><button class="pill dark" data-add-url="${escapeHTML(i.url)}">추가</button></div>`).join('') : '<p class="feed-empty">새 글이 없어요. 모두 서재에 있습니다.</p>'}</section>`;
-  } catch (err) {
-    if (request === feedRequest) $('#add-feeds').innerHTML = `<p class="feed-empty">목록을 불러오지 못했어요: ${escapeHTML(err.message)}</p>`;
-  }
+let addSources = [];
+let feedState = null;
+const PAGE_SIZE = 15;
+function feedItemHTML(i) {
+  return `<div class="feed-item"><div class="feed-thumb"${i.image ? ` style="background-image:url('${safeURL(i.image)}')"` : ''}></div><div><div class="meta">${i.date ? `<time>${escapeHTML(i.date.replaceAll('-', '.'))}</time>` : ''}${i.category ? `${i.date ? '<span class="dot"></span>' : ''}<span>${escapeHTML(i.category)}</span>` : ''}</div><strong>${external(i.url, i.title)}</strong></div><button class="pill dark" data-add-url="${escapeHTML(i.url)}">추가</button></div>`;
 }
+function renderFeed() {
+  if (!feedState) return;
+  const q = $('#add-search').value.normalize('NFC').toLocaleLowerCase().trim();
+  const matched = feedState.items.filter(i => !q || `${i.title} ${i.summary || ''}`.normalize('NFC').toLocaleLowerCase().includes(q));
+  const shown = matched.slice(0, feedState.visible);
+  $('#add-feeds').innerHTML = feedState.error ? `<p class="feed-empty">불러오지 못했어요: ${escapeHTML(feedState.error)}</p>`
+    : shown.length ? shown.map(feedItemHTML).join('')
+    : `<p class="feed-empty">${q ? '검색 결과가 없어요. 더보기로 이전 글을 더 불러와 보세요.' : '새 글이 없어요. 모두 서재에 있습니다.'}</p>`;
+  const more = matched.length > shown.length || feedState.hasMore;
+  $('#add-more').hidden = !more || Boolean(feedState.error);
+  $('#add-more').textContent = matched.length > shown.length ? `더보기 (${matched.length - shown.length})` : '이전 글 더 불러오기';
+}
+async function fetchPage(id, page) {
+  const {sources: [s]} = await api(`/api/feeds?source=${encodeURIComponent(id)}&page=${page}`);
+  return s;
+}
+async function loadSource(id) {
+  const source = addSources.find(s => s.id === id);
+  document.querySelectorAll('[data-source]').forEach(b => { b.classList.toggle('active', b.dataset.source === id); b.setAttribute('aria-pressed', b.dataset.source === id); });
+  $('#add-source').hidden = false;
+  $('#add-source-desc').innerHTML = `${escapeHTML(source.desc || '')} ${external(source.home, '사이트 열기')}`;
+  $('#add-search').value = '';
+  $('#add-search').closest('label').hidden = source.type === 'link';
+  $('#add-more').hidden = true;
+  if (source.type === 'link') {
+    feedState = null;
+    $('#add-feeds').innerHTML = '<p class="feed-empty">이 사이트는 새 글 목록을 불러올 수 없어요. 사이트에서 읽고, 추가할 글 주소를 위 입력칸에 붙여넣으세요.</p>';
+    return;
+  }
+  const request = Symbol(id);
+  feedState = {id, request, items: [], page: 0, hasMore: false, visible: PAGE_SIZE, error: ''};
+  $('#add-feeds').innerHTML = `<p class="feed-empty">아직 서재에 없는 글을 찾는 중이에요…${source.type === 'skax' ? ' (SK AX 는 30초 정도 걸려요)' : ''}</p>`;
+  try {
+    const s = await fetchPage(id, 1);
+    if (feedState?.request !== request) return;
+    Object.assign(feedState, {items: s.items, page: 1, hasMore: s.hasMore, error: s.error});
+  } catch (err) { if (feedState?.request === request) feedState.error = err.message; }
+  if (feedState?.request === request) renderFeed();
+}
+$('#add-more').addEventListener('click', async () => {
+  if (!feedState) return;
+  const q = $('#add-search').value.trim();
+  const matchedCount = feedState.items.filter(i => !q || `${i.title} ${i.summary || ''}`.toLocaleLowerCase().includes(q.toLocaleLowerCase())).length;
+  if (matchedCount > feedState.visible) { feedState.visible += PAGE_SIZE; renderFeed(); return; }
+  if (!feedState.hasMore) return;
+  const state = feedState;
+  $('#add-more').disabled = true; $('#add-more').textContent = '불러오는 중…';
+  try {
+    const s = await fetchPage(state.id, state.page + 1);
+    if (feedState !== state) return;
+    const seen = new Set(state.items.map(i => i.url));
+    const fresh = s.items.filter(i => !seen.has(i.url));
+    state.items.push(...fresh);
+    state.page += 1;
+    state.hasMore = s.hasMore && fresh.length > 0;
+    state.visible += PAGE_SIZE;
+  } catch (err) { toast(err.message); }
+  $('#add-more').disabled = false;
+  renderFeed();
+});
+$('#add-search').addEventListener('input', () => { if (feedState) { feedState.visible = PAGE_SIZE; renderFeed(); } });
 $('#nav-add')?.addEventListener('click', openAdd);
 $('#add-close').addEventListener('click', () => $('#add-dialog').close());
 $('#add-form').addEventListener('submit', e => { e.preventDefault(); addArticle($('#add-url').value, e.submitter); });
@@ -354,11 +407,7 @@ document.addEventListener('click', async event => {
   if (!tool || !currentNote) return;
   const note = currentNote;
   if (tool.dataset.tool === 'edit') {
-    try {
-      const {markdown} = await api(`/api/note?id=${encodeURIComponent(note.id)}`);
-      $('#edit-text').value = markdown; $('#edit-status').textContent = '';
-      $('#edit-dialog').dataset.id = note.id; $('#edit-dialog').showModal(); $('#edit-text').focus();
-    } catch (err) { toast(err.message); }
+    try { await openEditor(note); } catch (err) { toast(err.message); }
   }
   if (tool.dataset.tool === 'redraft') {
     if (!confirm('원문을 다시 읽어 제목과 본문을 AI 초안으로 새로 씁니다. 직접 고친 내용은 덮어씁니다. 계속할까요?')) return;
@@ -372,9 +421,154 @@ $('#edit-cancel').addEventListener('click', () => $('#edit-dialog').close());
 $('#edit-save').addEventListener('click', async () => {
   const id = $('#edit-dialog').dataset.id;
   $('#edit-status').textContent = '저장하는 중…';
-  try { await api('/api/save', {id, markdown: $('#edit-text').value}); reloadTo(id); }
+  try { await api('/api/save', {id, markdown: editorMarkdown()}); reloadTo(id); }
   catch (err) { $('#edit-status').textContent = err.message; }
 });
+
+// ── 섹션 편집기: 제목 + (부제목, 내용) 섹션. 저장할 때 Markdown 으로 되돌린다 ──
+let editorPreamble = '';
+async function openEditor(note) {
+  const {markdown} = await api(`/api/note?id=${encodeURIComponent(note.id)}`);
+  const lines = markdown.split('\n');
+  const titleIndex = lines.findIndex(l => l.startsWith('# '));
+  const firstSection = lines.findIndex(l => l.startsWith('## '));
+  $('#edit-heading').value = titleIndex >= 0 ? lines[titleIndex].slice(2).trim() : note.fullTitle;
+  // Header lines (정리일·출처·발행일) and anything before the first section stay as they are.
+  editorPreamble = lines.slice(titleIndex + 1, firstSection < 0 ? lines.length : firstSection).join('\n').trim();
+  const html = document.createElement('template');
+  html.innerHTML = note.html;
+  const sections = [];
+  let current = null;
+  for (const node of [...html.content.childNodes]) {
+    if (node.nodeName === 'H2') { current = {title: node.textContent.trim(), nodes: []}; sections.push(current); }
+    else if (current) current.nodes.push(node);
+  }
+  $('#edit-sections').replaceChildren(...sections.map(s => sectionEditor(s.title, s.nodes)));
+  $('#edit-status').textContent = '';
+  $('#edit-dialog').dataset.id = note.id;
+  $('#edit-dialog').showModal();
+}
+function sectionEditor(title = '', nodes = []) {
+  const box = document.createElement('section');
+  box.className = 'edit-section';
+  box.innerHTML = `<div class="edit-section-head"><input class="edit-section-title" type="text" placeholder="부제목" aria-label="부제목"><button type="button" data-move="-1" title="위로">↑</button><button type="button" data-move="1" title="아래로">↓</button><button type="button" data-remove-section title="섹션 삭제">삭제</button></div><div class="edit-content" contenteditable="true" aria-label="세부 내용"></div>`;
+  box.querySelector('.edit-section-title').value = title;
+  const content = box.querySelector('.edit-content');
+  nodes.forEach(n => content.append(n.cloneNode(true)));
+  if (!content.textContent.trim()) content.innerHTML = '<p><br></p>';
+  return box;
+}
+$('#edit-add-section').addEventListener('click', () => { const s = sectionEditor(); $('#edit-sections').append(s); s.querySelector('input').focus(); });
+$('#edit-sections').addEventListener('click', e => {
+  const box = e.target.closest('.edit-section');
+  if (!box) return;
+  if (e.target.closest('[data-remove-section]') && confirm('이 섹션을 삭제할까요?')) box.remove();
+  const move = e.target.closest('[data-move]');
+  if (move) {
+    const sibling = move.dataset.move === '-1' ? box.previousElementSibling : box.nextElementSibling;
+    if (sibling) move.dataset.move === '-1' ? sibling.before(box) : sibling.after(box);
+  }
+});
+// Toolbar acts on the current selection inside a section's content.
+document.querySelector('.edit-toolbar').addEventListener('mousedown', e => e.preventDefault());
+document.querySelector('.edit-toolbar').addEventListener('click', e => {
+  const button = e.target.closest('[data-cmd]');
+  if (!button) return;
+  const sel = window.getSelection();
+  if (!sel.rangeCount || !sel.anchorNode?.parentElement?.closest('.edit-content')) { toast('편집할 내용을 먼저 선택하세요.'); return; }
+  const cmd = button.dataset.cmd;
+  if (cmd === 'bold' && !document.queryCommandState('bold')) document.execCommand('bold');
+  if (cmd === 'thin' && document.queryCommandState('bold')) document.execCommand('bold');
+  if (cmd === 'bullet') document.execCommand('insertUnorderedList');
+  if (cmd === 'mark' || cmd === 'unmark') {
+    const range = sel.getRangeAt(0);
+    if (cmd === 'mark' && !range.collapsed) {
+      const mark = document.createElement('mark');
+      mark.append(range.extractContents());
+      mark.querySelectorAll('mark').forEach(m => m.replaceWith(...m.childNodes));
+      range.insertNode(mark);
+    } else {
+      const within = sel.anchorNode.parentElement.closest('mark');
+      const marks = new Set([within, ...[...document.querySelectorAll('.edit-content mark')].filter(m => range.intersectsNode(m))].filter(Boolean));
+      marks.forEach(m => m.replaceWith(...m.childNodes));
+    }
+  }
+});
+function inlineMarkdown(node) {
+  let out = '';
+  for (const n of node.childNodes) {
+    if (n.nodeType === 3) { out += n.textContent.replace(/\s+/g, ' '); continue; }
+    if (n.nodeType !== 1) continue;
+    const inner = inlineMarkdown(n);
+    const tag = n.nodeName;
+    const bg = n.style?.backgroundColor;
+    if (tag === 'STRONG' || tag === 'B' || (tag === 'SPAN' && /bold|[6-9]00/.test(n.style?.fontWeight || ''))) out += inner.trim() ? `**${inner.trim()}**` : inner;
+    else if (tag === 'MARK' || (tag === 'SPAN' && bg && !/transparent|rgba\(0, 0, 0, 0\)/.test(bg))) out += inner.trim() ? `<mark>${inner.trim()}</mark>` : inner;
+    else if (tag === 'EM' || tag === 'I') out += inner.trim() ? `*${inner.trim()}*` : inner;
+    else if (tag === 'CODE') out += '`' + n.textContent + '`';
+    else if (tag === 'A') out += `[${inner}](${n.getAttribute('href') || ''})`;
+    else if (tag === 'BR') out += '\n';
+    else if (tag === 'IMG') out += `![${n.getAttribute('alt') || ''}](${n.getAttribute('src') || ''})`;
+    else out += inner;
+  }
+  return out;
+}
+function blockMarkdown(root) {
+  const blocks = [];
+  // Python-Markdown needs 4-space indentation for anything nested inside a list item.
+  const list = (el, depth) => {
+    const ordered = el.nodeName === 'OL';
+    const pad = '    '.repeat(depth);
+    [...el.children].forEach((li, i) => {
+      let first = true;
+      const line = text => {
+        const clean = text.trim().replace(/\s*\n\s*/g, '<br>');
+        if (!clean) return;
+        if (first) { blocks.push(`${pad}${ordered ? `${i + 1}.` : '-'} ${clean}`); first = false; }
+        else blocks.push('', `${pad}    ${clean}`);
+      };
+      let inline = document.createElement('span');
+      const flush = () => { line(inlineMarkdown(inline)); inline = document.createElement('span'); };
+      for (const child of [...li.childNodes]) {
+        const tag = child.nodeName;
+        if (tag === 'UL' || tag === 'OL') { flush(); if (first) { blocks.push(`${pad}${ordered ? `${i + 1}.` : '-'}`); first = false; } list(child, depth + 1); }
+        else if (tag === 'BLOCKQUOTE') { flush(); blocks.push(...blockMarkdown(child).split('\n').map(l => `${pad}    > ${l}`.trimEnd())); }
+        else if (tag === 'P') { flush(); line(inlineMarkdown(child)); }
+        else inline.append(child.cloneNode(true));
+      }
+      flush();
+    });
+  };
+  const cells = row => '| ' + [...row.children].map(c => inlineMarkdown(c).trim().replace(/\s*\n\s*/g, '<br>').replace(/\|/g, '\\|')).join(' | ') + ' |';
+  for (const n of root.childNodes) {
+    if (n.nodeType === 3) { if (n.textContent.trim()) blocks.push(n.textContent.trim()); continue; }
+    if (n.nodeType !== 1) continue;
+    const tag = n.nodeName;
+    if (tag === 'UL' || tag === 'OL') { list(n, 0); blocks.push(''); }
+    else if (/^H[3-6]$/.test(tag)) blocks.push('#'.repeat(+tag[1]) + ' ' + inlineMarkdown(n).trim(), '');
+    else if (tag === 'BLOCKQUOTE') blocks.push(blockMarkdown(n).split('\n').map(l => l ? `> ${l}` : '>').join('\n'), '');
+    else if (tag === 'HR') blocks.push('---', '');
+    else if (tag === 'PRE') blocks.push('```\n' + n.textContent.replace(/\n$/, '') + '\n```', '');
+    else if (tag === 'TABLE' || n.classList?.contains('table-scroll')) {
+      const table = tag === 'TABLE' ? n : n.querySelector('table');
+      const rows = [...table.querySelectorAll('tr')];
+      if (rows.length) { blocks.push(cells(rows[0]), '|' + [...rows[0].children].map(() => '---').join('|') + '|', ...rows.slice(1).map(cells), ''); }
+    }
+    else if (tag === 'DIV' && n.querySelector('p, ul, ol, table')) blocks.push(blockMarkdown(n), '');
+    else { const text = inlineMarkdown(n).split('\n').map(l => l.trim()).join('\n').trim(); if (text) blocks.push(text, ''); }
+  }
+  return blocks.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+function editorMarkdown() {
+  const parts = [`# ${$('#edit-heading').value.trim()}`, '', editorPreamble, ''];
+  for (const box of document.querySelectorAll('#edit-sections .edit-section')) {
+    const title = box.querySelector('.edit-section-title').value.trim();
+    const body = blockMarkdown(box.querySelector('.edit-content'));
+    if (!title && !body) continue;
+    parts.push(`## ${title || '제목 없음'}`, '', body, '');
+  }
+  return parts.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+}
 
 // ── 마이페이지: AI 초안 엔진 ──
 async function renderMyPage() {

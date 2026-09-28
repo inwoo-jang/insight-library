@@ -86,6 +86,7 @@ def clean_title(title):
     """Drop site tags such as '[리포트 다운로드]', '| 9월 MI리포트', ' - SK AX'."""
     title = re.sub(r'\s+[-|｜]\s*SK AX\s*$', '', title or '')
     title = re.sub(r'^(\s*\[[^\]]{1,20}\]\s*)+', '', title)
+    title = re.sub(r'^(Featured|New|NEW)\s*(?=[A-Z가-힣])', '', title.strip())
     title = re.sub(r'\s*[|｜]\s*[^|｜]*(리포트|뉴스레터|웨비나|월호)\s*$', '', title)
     return title.strip().strip('"“”').strip()
 
@@ -135,11 +136,14 @@ def skax_article(url):
     }
 
 
-def skax_items(source, known):
-    """SK AX loads its list in the browser, so probe article numbers above the newest one we have."""
+def skax_items(source, known, page=1):
+    """SK AX loads its list in the browser, so probe article numbers. Page 1 looks above the newest one we have,
+    later pages walk back to older numbers."""
     ids = [int(m) for u in known for m in re.findall(r'skax\.co\.kr/insight/trend/(\d+)', u)]
     start = max(ids, default=source.get('startId', 3800))
-    candidates = [f'https://www.skax.co.kr/insight/trend/{n}' for n in range(start + 1, start + source.get('probe', 60))]
+    probe = source.get('probe', 60)
+    top = start + probe if page == 1 else start - probe * (page - 2)
+    candidates = [f'https://www.skax.co.kr/insight/trend/{n}' for n in range(top, top - probe, -1)]
 
     def probe(url):
         try:
@@ -153,9 +157,12 @@ def skax_items(source, known):
 ATOM = '{http://www.w3.org/2005/Atom}'
 
 
-def rss_items(source):
-    """Items from an RSS 2.0 or Atom feed."""
-    root = ET.fromstring(fetch(source['feed']))
+def rss_items(source, page=1):
+    """Items from an RSS 2.0 or Atom feed. WordPress-style feeds (…/feed/) also serve older pages."""
+    feed = source['feed']
+    if page > 1:
+        feed += ('&' if '?' in feed else '?') + f'paged={page}'
+    root = ET.fromstring(fetch(feed))
     items = []
     entries = [(e, False) for e in root.iter('item')] or [(e, True) for e in root.iter(f'{ATOM}entry')]
     for entry, atom in entries:
@@ -191,20 +198,98 @@ def rss_items(source):
     return items
 
 
-def feeds(source_id=None):
+def html_items(source, page=1):
+    if page > 1:
+        return []
+    """Sites without a feed: collect article links matching the source's pattern from its list page."""
+    page = fetch(source['list']).decode('utf-8', 'replace')
+    base = f"{urlsplit(source['list']).scheme}://{urlsplit(source['list']).netloc}"
+    found = {}
+    for href, inner in re.findall(r'<a[^>]+href="(' + source['pattern'] + r')"[^>]*>(.*?)</a>', page, re.S):
+        url = href if href.startswith('http') else base + href
+        heading = re.search(r'<(h[1-6])[^>]*>(.*?)</\1>', inner, re.S)
+        title = re.sub(r'\s+', ' ', text(heading[2] if heading else inner))
+        if len(title) < 6:
+            title = found.get(url, {}).get('title') or unquote(href.rstrip('/').split('/')[-1]).removesuffix('.html').replace('-', ' ')
+        if url not in found or len(title) > len(found[url]['title']):
+            found[url] = {'url': url, 'title': clean_title(re.sub(r'^\d{1,2}\s+', '', title.strip())[:160]), 'date': '', 'summary': '', 'image': '', 'category': '', 'headings': [], 'html': ''}
+    return list(found.values())[:20]
+
+
+def github_items(source, page=1):
+    if page > 1:
+        return []
+    page = fetch(source['home']).decode('utf-8', 'replace')
+    items = []
+    for block in re.findall(r'<article class="Box-row">(.*?)</article>', page, re.S)[:20]:
+        repo = re.search(r'<h2[^>]*>\s*<a[^>]+href="(/[^"]+)"', block)
+        if not repo:
+            continue
+        about = re.search(r'<p[^>]*>(.*?)</p>', block, re.S)
+        today = re.search(r'([\d,]+) stars (today|this week)', block)
+        items.append({'url': 'https://github.com' + repo[1], 'title': repo[1].strip('/'), 'date': date.today().isoformat(),
+                      'summary': text(about[1]) if about else '', 'image': '', 'category': f'오늘 ★{today[1]}' if today else '',
+                      'headings': [], 'html': ''})
+    return items
+
+
+def hf_paper_items(source, page=1):
+    from datetime import timedelta
+    entries = []
+    if page == 1:
+        entries = json.loads(fetch('https://huggingface.co/api/daily_papers?limit=30'))
+    else:
+        # Page n = the n-th earlier day that has papers (weekends are empty).
+        day, found = date.today(), 1
+        for _ in range(page * 3):
+            day -= timedelta(days=1)
+            batch = json.loads(fetch(f'https://huggingface.co/api/daily_papers?limit=30&date={day.isoformat()}'))
+            if batch:
+                found += 1
+                if found == page:
+                    entries = batch
+                    break
+    items = []
+    for entry in entries:
+        paper = entry.get('paper', {})
+        items.append({'url': f"https://huggingface.co/papers/{paper.get('id')}", 'title': text(paper.get('title') or entry.get('title')),
+                      'date': (entry.get('publishedAt') or '')[:10], 'summary': tidy_summary(paper.get('summary') or entry.get('summary')),
+                      'image': entry.get('thumbnail') or '', 'category': f"👍 {paper.get('upvotes', 0)}", 'headings': [], 'html': ''})
+    return items
+
+
+def arxiv_items(source, page=1):
+    per = 25
+    url = (f"https://export.arxiv.org/api/query?search_query=cat:{source.get('category_code', 'cs.LG')}"
+           f"&sortBy=submittedDate&sortOrder=descending&start={(page - 1) * per}&max_results={per}")
+    return rss_items({'feed': url, 'category': ''})
+
+
+READERS = {'skax': None, 'arxiv': arxiv_items, 'rss': rss_items, 'html': html_items, 'github': github_items, 'hfpapers': hf_paper_items}
+
+
+PAGEABLE = {'skax', 'arxiv', 'hfpapers'}
+
+
+def feeds(source_id=None, page=1):
     known = known_urls()
     result = []
     for source in sources():
         if source_id and source['id'] != source_id:
             continue
         try:
-            items = skax_items(source, known) if source['type'] == 'skax' else rss_items(source)
-            error = ''
+            if source['type'] == 'link':
+                items, error = [], ''
+            else:
+                items = skax_items(source, known, page) if source['type'] == 'skax' else READERS[source['type']](source, page)
+                error = ''
         except Exception as exc:
             items, error = [], str(exc)
         fresh = [{k: v for k, v in i.items() if k != 'html'} for i in items if unquote(i['url']).rstrip('/') not in known]
         fresh.sort(key=lambda i: i['date'], reverse=True)
-        result.append({'id': source['id'], 'name': source['name'], 'home': source['home'], 'items': fresh[:12], 'error': error})
+        result.append({'id': source['id'], 'name': source['name'], 'home': source['home'], 'type': source['type'],
+                       'desc': source.get('desc', ''), 'items': fresh, 'error': error, 'page': page,
+                       'hasMore': bool(items) and (source['type'] in PAGEABLE or '/feed' in source.get('feed', ''))})
     return result
 
 
@@ -217,7 +302,7 @@ def article(url):
     source = source_for(url)
     if source and source['type'] == 'skax':
         return source, skax_article(url)
-    if source:
+    if source and source['type'] == 'rss':
         for item in rss_items(source | {'category': ''}):
             if item['url'].rstrip('/') == url.rstrip('/'):
                 page = fetch(url).decode('utf-8', 'replace')
@@ -247,7 +332,8 @@ def add_source(body):
     source_id = re.sub(r'[^a-z0-9]+', '-', urlsplit(home).netloc.lower()).strip('-') or f'src{len(listed)}'
     if any(s['id'] == source_id for s in listed):
         raise ValueError('이미 등록된 플랫폼입니다.')
-    listed.append({'id': source_id, 'name': name, 'type': 'rss', 'home': home, 'feed': feed, 'category': '',
+    listed.append({'id': source_id, 'name': name, 'group': str(body.get('group') or '내가 추가한 플랫폼'), 'desc': str(body.get('desc') or '').strip(),
+                   'type': 'rss', 'home': home, 'feed': feed, 'category': '',
                    'filePrefix': re.sub(r'[^A-Za-z0-9가-힣]', '', name)[:12] or 'WEB',
                    'category_label': body.get('category_label') if body.get('category_label') in CATEGORIES else '에이전트·개발',
                    'industry': str(body.get('industry') or '').strip()})
@@ -518,9 +604,12 @@ class Handler(SimpleHTTPRequestHandler):
             if route == '/api/ping':
                 return self.send_json(200, {'ok': True})
             if route == '/api/feeds':
-                return self.send_json(200, {'sources': feeds(parse_qs(query).get('source', [None])[0])})
+                params = parse_qs(query)
+                page = max(1, int(params.get('page', ['1'])[0] or 1))
+                return self.send_json(200, {'sources': feeds(params.get('source', [None])[0], page)})
             if route == '/api/sources':
-                return self.send_json(200, {'sources': sources()})
+                routine = ROOT / 'web/routine.json'
+                return self.send_json(200, {'sources': sources(), 'routine': json.loads(routine.read_text()) if routine.exists() else None})
             if route == '/api/settings':
                 return self.send_json(200, {'settings': settings(), 'engines': engines()})
             if route == '/api/note':

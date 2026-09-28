@@ -130,15 +130,32 @@
     <div class="add-top">
       <div class="add-head"><h2 id="add-title">새 소식 추가</h2><button class="add-close" id="add-close" aria-label="닫기">✕</button></div>
       <form id="add-form" class="add-form"><input id="add-url" type="url" placeholder="기사 주소를 붙여넣어 바로 추가 (https://…)" required><button class="pill dark" type="submit">추가</button></form>
-      <div id="add-platforms" class="filters add-platforms" role="group" aria-label="플랫폼"></div>
       <p id="add-status" class="add-status" role="status"></p>
     </div>
-    <div id="add-feeds" class="add-feeds"></div>
+    <div class="add-body">
+      <div id="add-platforms" class="add-platforms"></div>
+      <div id="add-source" class="add-source" hidden>
+        <p id="add-source-desc" class="add-source-desc"></p>
+        <label class="add-search"><span class="sr-only">불러온 글 검색</span><input id="add-search" type="search" placeholder="불러온 글에서 제목·내용 검색"></label>
+      </div>
+      <div id="add-feeds" class="add-feeds"></div>
+      <button id="add-more" class="pill add-more" hidden>더보기</button>
+    </div>
   </dialog>
   <dialog id="edit-dialog" aria-labelledby="edit-title">
     <div class="add-top"><div class="add-head"><h2 id="edit-title">노트 편집</h2><button class="add-close" id="edit-close" aria-label="닫기">✕</button></div>
-      <p class="edit-hint">Markdown 원본입니다. 첫 줄은 <code># 제목</code>, 머리의 <code>&gt; 정리일·출처·발행일</code> 줄은 화면 상단 정보로 쓰입니다.</p></div>
-    <textarea id="edit-text" spellcheck="false"></textarea>
+      <div class="edit-toolbar" role="toolbar" aria-label="서식">
+        <button type="button" data-cmd="bold" title="굵게 (⌘B)"><b>B</b> 굵게</button>
+        <button type="button" data-cmd="thin" title="굵기 해제">얇게</button>
+        <button type="button" data-cmd="mark" title="하이라이트"><span class="swatch"></span>하이라이트</button>
+        <button type="button" data-cmd="unmark" title="하이라이트 해제">하이라이트 해제</button>
+        <button type="button" data-cmd="bullet" title="글머리 기호">• 불릿</button>
+      </div></div>
+    <div class="edit-body">
+      <label class="edit-field"><span>제목</span><input id="edit-heading" type="text"></label>
+      <div id="edit-sections"></div>
+      <button type="button" id="edit-add-section" class="pill">+ 섹션 추가</button>
+    </div>
     <div class="edit-actions"><span id="edit-status" class="add-status" role="status"></span><button id="edit-cancel" class="pill">취소</button><button id="edit-save" class="pill dark">저장</button></div>
   </dialog>
   <div id="toast" class="toast" role="status" hidden></div>
