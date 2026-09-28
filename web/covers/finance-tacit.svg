@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 730"><rect width="1200" height="730" fill="#123b2f"/>
+<g stroke="#2e6b58" stroke-width="2"><path d="M80 160H1120M80 300H1120M80 440H1120M80 580H1120"/></g>
+<g><path d="M170 380v150" stroke="#e45c5c" stroke-width="4"/><rect x="150" y="410" width="40" height="90" fill="#e45c5c"/>
+<path d="M270 330v160" stroke="#5fd3a1" stroke-width="4"/><rect x="250" y="360" width="40" height="100" fill="#5fd3a1"/>
+<path d="M370 280v150" stroke="#5fd3a1" stroke-width="4"/><rect x="350" y="300" width="40" height="100" fill="#5fd3a1"/>
+<path d="M470 300v140" stroke="#e45c5c" stroke-width="4"/><rect x="450" y="320" width="40" height="80" fill="#e45c5c"/>
+<path d="M570 220v150" stroke="#5fd3a1" stroke-width="4"/><rect x="550" y="240" width="40" height="110" fill="#5fd3a1"/></g>
+<path d="M740 170h330a40 40 0 0 1 40 40v170a40 40 0 0 1-40 40H880l-70 60 10-60h-80a40 40 0 0 1-40-40V210a40 40 0 0 1 40-40z" fill="#f4efe3"/>
+<g fill="#123b2f"><rect x="770" y="230" width="270" height="18" rx="9"/><rect x="770" y="275" width="210" height="18" rx="9" opacity=".7"/><rect x="770" y="320" width="240" height="18" rx="9" opacity=".45"/></g>
+<g fill="#f4efe3" opacity=".1"><circle cx="1100" cy="640" r="140"/></g></svg>

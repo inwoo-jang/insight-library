@@ -1,0 +1,17 @@
+# 로컬 전용
+.venv/
+.vscode/
+.claude/
+.DS_Store
+__pycache__/
+web/settings.json
+
+# index.html 은 GitHub Actions 가 공개 노트만으로 다시 만든다
+index.html
+
+# 원본·백업 (공개하지 않음)
+원본/
+
+# 동료가 쓴 글 — 로컬 서재에만 둔다
+260928_동료공유-*.md
+web/catalog.local.json
