@@ -75,7 +75,7 @@ function fixLinks(root) {
       const name = decodeURIComponent(href.replace(/^(\.\.?\/)+/, '')).normalize('NFC').split('/').pop();
       const linked = [...notes, ...companies].find(n => n.file.normalize('NFC').split('/').pop() === name);
       if (linked) a.href = `#note/${linked.id}`; else a.removeAttribute('href');
-    } else if (/\.pdf$/i.test(href)) { a.href = href.replace(/^\.\//, ''); a.target = '_blank'; }
+    } else if (/\.pdf$/i.test(href)) { a.href = 'notes/' + href.replace(/^\.\//, '').replace(/^notes\//, ''); a.target = '_blank'; }
     else if (!href.startsWith('#')) a.removeAttribute('href');
   });
 }

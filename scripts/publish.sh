@@ -7,11 +7,11 @@ SITE=$(mktemp -d)
 .venv/bin/python scripts/build.py --public --out "$SITE/index.html"
 cp -R web "$SITE/web"
 rm -f "$SITE/web/catalog.local.json" "$SITE/web/settings.json"
-cp -R 기업 "$SITE/기업"
-for f in *.md *.pdf; do
-  case "$f" in README.md|CLAUDE.md) continue ;; esac
+cp -R companies "$SITE/companies"
+mkdir -p "$SITE/notes"
+for f in notes/*.md notes/*.pdf; do
   git check-ignore -q "$f" && continue
-  cp "$f" "$SITE/"
+  cp "$f" "$SITE/notes/"
 done
 touch "$SITE/.nojekyll"
 cd "$SITE"

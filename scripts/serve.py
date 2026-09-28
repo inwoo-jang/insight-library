@@ -38,6 +38,7 @@ def sources():
     return json.loads(SOURCES_PATH.read_text())
 
 
+NOTES = ROOT / 'notes'
 CATALOG_PATH = ROOT / 'web/catalog.json'
 SETTINGS_PATH = ROOT / 'web/settings.json'
 CATEGORIES = ('에이전트·개발', '클라우드·인프라', '산업·AX', '조직·거버넌스')
@@ -62,7 +63,7 @@ def meta(page, prop):
 def known_urls():
     """Every http link already written in a note, normalised without a trailing slash."""
     urls = set()
-    for path in ROOT.glob('*.md'):
+    for path in (ROOT / 'notes').glob('*.md'):
         for url in re.findall(r'https?://[^\s)\]>"]+', path.read_text()):
             urls.add(unquote(url).rstrip('/'))
     return urls
@@ -428,7 +429,7 @@ def add(url):
         except Exception:
             cover = ''
 
-    (ROOT / filename).write_text(
+    (NOTES / filename).write_text(
         f"# {item['title']}\n\n> 정리일: {today.isoformat()}\n> 출처: [{name}]({url})\n"
         f"> 발행일: {item.get('date') or '미확인'}\n\n---\n\n"
         f"{body or skeleton(item)}\n")
@@ -446,7 +447,7 @@ def add(url):
 
 def note_file(note_id):
     filename = next((f for f, v in load_catalog().items() if v.get('id') == note_id), None)
-    if not filename or not (ROOT / filename).exists():
+    if not filename or not (NOTES / filename).exists():
         raise ValueError('노트를 찾지 못했습니다.')
     return filename
 
@@ -454,7 +455,7 @@ def note_file(note_id):
 def redraft(note_id):
     """Rewrite a note's title and body from its source article, keeping the header lines."""
     filename = note_file(note_id)
-    raw = (ROOT / filename).read_text()
+    raw = (NOTES / filename).read_text()
     url = re.search(r'^> 출처: \[[^\]]*\]\((https?://[^)]+)\)', raw, re.M)
     if not url:
         raise ValueError('노트 머리에 원문 주소(> 출처: [..](https://..))가 없습니다.')
@@ -466,10 +467,10 @@ def redraft(note_id):
     # Keep the date/source prefix of the file name, refresh the slug from the new title.
     prefix = re.match(r'^(\d{6}_[^-]+)-', filename)
     new_name = f'{prefix[1]}-{slugify(title)}.md' if prefix else filename
-    if new_name != filename and (ROOT / new_name).exists():
+    if new_name != filename and (NOTES / new_name).exists():
         new_name = filename
-    (ROOT / filename).unlink()
-    (ROOT / new_name).write_text(f'# {title}\n\n{header}\n---\n\n{body}\n')
+    (NOTES / filename).unlink()
+    (NOTES / new_name).write_text(f'# {title}\n\n{header}\n---\n\n{body}\n')
     catalog = {(new_name if k == filename else k): v for k, v in load_catalog().items()}
     apply_fields(catalog[new_name], fields)
     if not fields.get('CARD_TITLE'):
@@ -483,7 +484,7 @@ def save_note(note_id, markdown):
     filename = note_file(note_id)
     if not markdown.strip().startswith('# '):
         raise ValueError('첫 줄은 "# 제목" 이어야 합니다.')
-    (ROOT / filename).write_text(markdown.rstrip() + '\n')
+    (NOTES / filename).write_text(markdown.rstrip() + '\n')
     rebuild()
     return {'id': note_id}
 
@@ -524,7 +525,7 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_json(200, {'settings': settings(), 'engines': engines()})
             if route == '/api/note':
                 note_id = parse_qs(query).get('id', [''])[0]
-                return self.send_json(200, {'id': note_id, 'markdown': (ROOT / note_file(note_id)).read_text()})
+                return self.send_json(200, {'id': note_id, 'markdown': (NOTES / note_file(note_id)).read_text()})
         except ValueError as exc:
             return self.send_json(400, {'error': str(exc)})
         return super().do_GET()

@@ -67,8 +67,8 @@ def strip_header(raw):
 
 
 notes = []
-for path in sorted(ROOT.glob('*.md')):
-    if path.name in ('README.md', 'CLAUDE.md') or (PUBLIC and path.name in LOCAL_ONLY):
+for path in sorted((ROOT / 'notes').glob('*.md')):
+    if PUBLIC and path.name in LOCAL_ONLY:
         continue
     raw = path.read_text()
     meta = catalog.get(path.name, {})
@@ -96,18 +96,18 @@ for path in sorted(ROOT.glob('*.md')):
         'industry': meta.get('industry', ''),
         'published': published[1] if published else '',
         'type': meta.get('type', ''),
-        'pdf': quote(pdf[1]) if pdf and (ROOT / pdf[1]).exists() else '',
+        'pdf': quote('notes/' + pdf[1]) if pdf and (ROOT / 'notes' / pdf[1]).exists() else '',
         'file': path.name,
-        'fileUrl': quote(path.name),
+        'fileUrl': quote('notes/' + path.name),
         'minutes': max(1, round(len(raw) / 650)),
         'links': links, 'html': content, 'text': raw,
     })
 notes.sort(key=lambda note: note['seriesOrder'])
 notes.sort(key=lambda note: note['date'], reverse=True)
-attachments = [{'name': p.name, 'url': quote(p.name), 'size': f'{p.stat().st_size / 1024 / 1024:.1f} MB'} for p in sorted(ROOT.glob('*.pdf'))]
-# Company research lives in 기업/. Files starting with "_" are the comparison page and the template.
+attachments = [{'name': p.name, 'url': quote('notes/' + p.name), 'size': f'{p.stat().st_size / 1024 / 1024:.1f} MB'} for p in sorted((ROOT / 'notes').glob('*.pdf'))]
+# Company research lives in companies/. Files starting with "_" are the comparison page and the template.
 companies = []
-for path in sorted((ROOT / '기업').glob('[!_]*.md')):
+for path in sorted((ROOT / 'companies').glob('[!_]*.md')):
     raw = path.read_text()
     title = re.search(r'^# (.+)', raw, re.M)[1]
     summary = re.search(r'\*\*한 줄 요약:\*\*\s*(.+?)\s*$', raw, re.M)
@@ -119,8 +119,8 @@ for path in sorted((ROOT / '기업').glob('[!_]*.md')):
         'date': field(raw, '정리일'),
         'asOf': field(raw, '기준일'),
         'summary': summary[1] if summary else '',
-        'file': '기업/' + path.name,
-        'fileUrl': quote('기업/' + path.name),
+        'file': 'companies/' + path.name,
+        'fileUrl': quote('companies/' + path.name),
         'minutes': max(1, round(len(raw) / 650)),
         # The header lines show up in the reader's meta line instead.
         'links': extract_links(raw), 'html': render(re.sub(r'^\*\*한 줄 요약:\*\*.*\n(근거:.*\n)?', '', strip_header(raw), flags=re.M)), 'text': raw,
