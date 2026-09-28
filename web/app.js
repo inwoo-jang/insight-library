@@ -177,6 +177,18 @@ function openNote(id) {
     img.addEventListener('error', () => { const a = document.createElement('a'); a.className = 'original-image'; a.href = src; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = `원문 이미지 보기: ${img.alt || '참고 이미지'} ↗`; img.replaceWith(a); }, {once: true});
   });
   fragment.content.querySelectorAll('table').forEach(table => { const wrap = document.createElement('div'); wrap.className = 'table-scroll'; wrap.tabIndex = 0; wrap.setAttribute('role', 'region'); wrap.setAttribute('aria-label', '표, 좌우로 스크롤할 수 있습니다'); table.before(wrap); wrap.append(table); });
+  // '한 문장 인사이트' is the point of the note: lift it into a highlighted box under the title.
+  const insightHead = [...fragment.content.querySelectorAll('h2')].find(h => h.textContent.trim().startsWith('한 문장 인사이트'));
+  $('#reader-insight').replaceChildren();
+  if (insightHead) {
+    const label = document.createElement('p'); label.className = 'insight-label'; label.textContent = '한 문장 인사이트';
+    $('#reader-insight').append(label);
+    let node = insightHead.nextSibling;
+    while (node && node.nodeName !== 'H2') { const next = node.nextSibling; $('#reader-insight').append(node); node = next; }
+    insightHead.remove();
+  }
+  $('#reader-insight').hidden = !insightHead;
+  $('#reader-summary').hidden = Boolean(insightHead);
   // '읽을 때 주의할 점' reads as a footnote: move it to the end in small type.
   const caveatHead = [...fragment.content.querySelectorAll('h2')].find(h => h.textContent.trim().startsWith('읽을 때 주의할 점'));
   let caveats = null;
