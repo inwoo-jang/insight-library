@@ -1,0 +1,26 @@
+{
+  "title": "추천 확인 루틴",
+  "rows": [
+    {
+      "when": "매일 가볍게",
+      "where": "GeekNews · AI타임스 · Hugging Face Daily Papers",
+      "result": "오늘 눈에 들어온 주제 1개와 원문 링크"
+    },
+    {
+      "when": "주 2회",
+      "where": "삼성SDS · AWS · 올리브영 · 토스 중 한 곳",
+      "result": "어떤 업무 문제를 어떤 기술로 풀었는지 5줄 정리"
+    },
+    {
+      "when": "주 1회 깊게",
+      "where": "Anthropic Engineering · Hugging Face Blog · NVIDIA · Kaggle 중 한 곳",
+      "result": "직접 실행하거나 비교해볼 실험 1개"
+    },
+    {
+      "when": "모델을 고를 때",
+      "where": "Artificial Analysis · Arena · 자체 테스트",
+      "result": "성능·비용·속도·실패 유형 비교표"
+    }
+  ],
+  "question": "무엇이 새로워졌나? 어떤 산업·업무에 쓸 수 있나? 기존 방식보다 무엇이 나아졌나? 어떤 조건에서는 안 통하나? 내가 검증할 가장 작은 실험은 무엇인가?"
+}

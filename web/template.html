@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="읽고, 연결하고, 내 것으로 만드는 장인우의 AI·기술 인사이트 아카이브">
+  <title>인사이트 서재 — 장인우의 기록</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23111'/%3E%3Ctext x='20' y='28' font-family='serif' font-size='22' text-anchor='middle' fill='%23fff'%3E인%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Inter:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="web/styles.css">
+  <script src="web/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">본문으로 이동</a>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="#" aria-label="인사이트 서재 홈">인사이트 서재</a>
+      <nav class="topnav" aria-label="주요 메뉴">
+        <button class="nav-link active" data-view="all">전체</button>
+        <button class="nav-link" data-view="companies">산업·기업 AX</button>
+        <button class="nav-link" data-view="saved">저장한 글 <span id="saved-count" class="count">0</span></button>
+        <button class="nav-link" data-view="sources">출처 모음</button>
+        <button class="nav-link" data-view="mypage">마이페이지</button>
+        <button class="nav-add" id="nav-add" aria-label="새 소식 추가" title="새 소식 추가"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button class="nav-search" id="nav-search" aria-label="검색으로 이동"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero wrap" aria-label="검색">
+      <label class="hero-search">
+        <span class="sr-only">인사이트 검색</span>
+        <input id="search" type="search" placeholder="제목, 내용, 키워드로 검색" autocomplete="off">
+        <kbd>/</kbd>
+      </label>
+    </section>
+
+    <section id="featured-section" class="wrap" aria-label="최근 추가한 인사이트"></section>
+
+    <section class="collection wrap" aria-labelledby="collection-title">
+      <div class="collection-head">
+        <h2 id="collection-title">모든 인사이트</h2>
+        <div class="collection-tools">
+          <div id="filters" class="filters" role="group" aria-label="주제 필터"></div>
+          <label class="sort"><span class="sr-only">정렬</span><select id="sort"><option value="newest">최신순</option><option value="oldest">오래된순</option><option value="title">가나다순</option></select></label>
+        </div>
+      </div>
+      <p id="result-status" class="sr-only" aria-live="polite"></p>
+      <div id="cards" class="grid"></div>
+      <div id="empty" class="empty" hidden>
+        <h3>아직 발견한 인사이트가 없어요.</h3>
+        <p>다른 검색어를 입력하거나 필터를 바꿔보세요.</p>
+        <button id="reset" class="pill">검색과 필터 초기화</button>
+      </div>
+    </section>
+
+    <section id="mypage-section" class="mypage wrap" aria-labelledby="mypage-title" hidden>
+      <h1 id="mypage-title">마이페이지</h1>
+      <div class="setting-card">
+        <h2>AI 초안 작성</h2>
+        <p class="setting-lead">새 소식을 추가하거나 ‘AI로 다시 쓰기’를 누르면, 선택한 CLI 가 원문을 읽고 제목·요약·본문 초안을 씁니다. 이 컴퓨터에 설치된 CLI 를 그대로 쓰므로 별도 API 키가 필요 없습니다.</p>
+        <div id="engine-options" class="engine-options" role="radiogroup" aria-label="AI 초안 엔진"></div>
+        <label class="setting-field"><span>모델 (선택)</span><input id="engine-model" type="text" placeholder="비우면 CLI 기본 모델 — 예: sonnet, opus / gpt-5.5"></label>
+        <div class="setting-actions"><button id="engine-save" class="pill dark">저장</button><button id="engine-test" class="pill">연결 테스트</button></div>
+        <p id="engine-status" class="add-status" role="status"></p>
+      </div>
+      <div class="setting-card">
+        <h2>새 소식 플랫폼</h2>
+        <p class="setting-lead">+ 버튼에서 고를 수 있는 사이트입니다. 기술 블로그·GeekNews 처럼 RSS·Atom 피드가 있는 곳은 주소만 넣으면 추가됩니다.</p>
+        <ul id="source-list" class="source-list"></ul>
+        <form id="source-form" class="source-form">
+          <input id="source-feed" type="url" placeholder="피드 주소 (예: https://news.hada.io/rss/news)" required>
+          <input id="source-name" type="text" placeholder="이름 (비우면 피드 제목)">
+          <select id="source-category"><option>에이전트·개발</option><option>클라우드·인프라</option><option>산업·AX</option><option>조직·거버넌스</option></select>
+          <input id="source-industry" type="text" placeholder="산업 (선택, 예: 금융)">
+          <button class="pill dark" type="submit">추가</button>
+        </form>
+        <p id="source-status" class="add-status" role="status"></p>
+      </div>
+    </section>
+
+    <section id="companies-section" class="companies wrap" aria-labelledby="companies-title" hidden>
+      <div class="companies-head">
+        <p class="kicker">INDUSTRY · COMPANY AX</p>
+        <h1 id="companies-title">산업·기업별 AX</h1>
+        <p class="companies-lead">산업마다 기업이 지금 무엇에 힘쓰고, AI·IT로 무엇을 하고 있는지. 흐름을 산업별로 묶었습니다.</p>
+      </div>
+      <div id="industry-filters" class="filters" role="group" aria-label="산업 필터"></div>
+      <div id="industry-groups"></div>
+      <p class="companies-howto">새 회사 조사는 <code>기업/_템플릿.md</code> 를 복사해 <code>기업/회사id.md</code> 로 저장하고 빌드하면 여기에 추가됩니다.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-grid">
+      <div class="footer-brand-col">
+        <a class="footer-mark" href="#" aria-label="맨 위로">인</a>
+        <p>좋은 인사이트는 읽는 데서 끝나지 않으니까.<br>오늘의 배움이 다음 프로젝트의 출발점이 되도록.</p>
+      </div>
+      <div><h3>주제</h3><div id="footer-topics"></div></div>
+      <div><h3>시리즈</h3><div id="footer-series"></div></div>
+      <div><h3>서재</h3><button class="footer-link" data-view="all">전체 인사이트</button><button class="footer-link" data-view="companies">산업·기업 AX</button><button class="footer-link" data-view="saved">저장한 글</button><button class="footer-link" data-view="sources">출처 모음</button><button class="footer-link" data-view="mypage">마이페이지</button><a class="footer-link" href="#main">맨 위로 ↑</a></div>
+    </div>
+    <p class="wrap footer-note">장인우의 개인 학습 아카이브 · 기사 요약은 원문 발표 기준이며 개인 해석을 구분해 적었습니다.</p>
+  </footer>
+
+  <dialog id="reader" aria-labelledby="reader-title">
+    <div class="reader-bar"><div class="wrap reader-bar-inner"><button id="reader-close" class="back">← 목록으로</button><span class="reader-bar-title" id="reader-bar-title"></span><div id="reader-actions" class="reader-actions"></div></div></div>
+    <article class="article">
+      <header class="article-head">
+        <div id="reader-meta" class="meta"></div>
+        <h1 id="reader-title" tabindex="-1"></h1>
+        <p id="reader-summary" class="article-summary"></p>
+      </header>
+      <section id="reader-insight" class="insight-callout" aria-label="한 문장 인사이트" hidden></section>
+      <div id="reader-cover" class="article-cover"></div>
+      <div class="article-body">
+        <aside class="toc"><p class="toc-label">이 글의 목차</p><nav id="reader-toc" aria-label="본문 목차"></nav></aside>
+        <div id="reader-content" class="prose"></div>
+      </div>
+      <section id="reader-series" class="series-box"></section>
+      <section id="reader-sources" class="sources-box"></section>
+    </article>
+  </dialog>
+  <dialog id="add-dialog" aria-labelledby="add-title">
+    <div class="add-top">
+      <div class="add-head"><h2 id="add-title">새 소식 추가</h2><button class="add-close" id="add-close" aria-label="닫기">✕</button></div>
+      <form id="add-form" class="add-form"><input id="add-url" type="url" placeholder="기사 주소를 붙여넣어 바로 추가 (https://…)" required><button class="pill dark" type="submit">추가</button></form>
+      <p id="add-status" class="add-status" role="status"></p>
+    </div>
+    <div class="add-body">
+      <div id="add-platforms" class="add-platforms"></div>
+      <div id="add-source" class="add-source" hidden>
+        <p id="add-source-desc" class="add-source-desc"></p>
+        <label class="add-search"><span class="sr-only">불러온 글 검색</span><input id="add-search" type="search" placeholder="불러온 글에서 제목·내용 검색"></label>
+      </div>
+      <div id="add-feeds" class="add-feeds"></div>
+      <button id="add-more" class="pill add-more" hidden>더보기</button>
+    </div>
+  </dialog>
+  <dialog id="edit-dialog" aria-labelledby="edit-title">
+    <div class="add-top"><div class="add-head"><h2 id="edit-title">노트 편집</h2><button class="add-close" id="edit-close" aria-label="닫기">✕</button></div>
+      <div class="edit-toolbar" role="toolbar" aria-label="서식">
+        <button type="button" data-cmd="bold" title="굵게 (⌘B)"><b>B</b> 굵게</button>
+        <button type="button" data-cmd="thin" title="굵기 해제">얇게</button>
+        <button type="button" data-cmd="mark" title="하이라이트"><span class="swatch"></span>하이라이트</button>
+        <button type="button" data-cmd="unmark" title="하이라이트 해제">하이라이트 해제</button>
+        <button type="button" data-cmd="bullet" title="글머리 기호">• 불릿</button>
+      </div></div>
+    <div class="edit-body">
+      <label class="edit-field"><span>제목</span><input id="edit-heading" type="text"></label>
+      <div id="edit-sections"></div>
+      <button type="button" id="edit-add-section" class="pill">+ 섹션 추가</button>
+    </div>
+    <div class="edit-actions"><span id="edit-status" class="add-status" role="status"></span><button id="edit-cancel" class="pill">취소</button><button id="edit-save" class="pill dark">저장</button></div>
+  </dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <noscript><p class="noscript">검색과 본문 읽기를 사용하려면 JavaScript를 켜주세요. 원본 Markdown 문서는 이 폴더에서 바로 읽을 수 있습니다.</p></noscript>
+  <!-- ARCHIVE_DATA -->
+</body>
+</html>
