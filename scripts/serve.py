@@ -1,7 +1,7 @@
 """Serve the library locally: add articles from tracked sources, draft notes with an AI CLI, edit notes.
 
 Run with the project venv so the build step can import Markdown:
-    .venv/bin/python scripts/serve.py        # http://127.0.0.1:8000
+    .venv/bin/python scripts/serve.py        # http://127.0.0.1:8005
 
 GET  /api/ping                    → {"ok": true}
 GET  /api/feeds                   → new items per source that are not in the library yet
@@ -658,7 +658,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8005
     # Docker sets INSIGHT_HOST=0.0.0.0 so the published port reaches the server; locally it stays on loopback.
     host = os.environ.get('INSIGHT_HOST', '127.0.0.1')
     print(f'인사이트 서재: http://127.0.0.1:{port}  (종료: Ctrl+C)')

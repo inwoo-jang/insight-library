@@ -7,5 +7,5 @@ if not exist .venv\Scripts\python.exe (
   .venv\Scripts\python.exe -m pip install -q -r requirements.txt
 )
 .venv\Scripts\python.exe scripts\build.py
-start "" http://127.0.0.1:8000/index.html
-.venv\Scripts\python.exe scripts\serve.py 8000
+start "" http://127.0.0.1:8005/index.html
+.venv\Scripts\python.exe scripts\serve.py 8005

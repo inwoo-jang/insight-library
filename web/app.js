@@ -261,11 +261,11 @@ $('#reader').addEventListener('scroll', () => {
 }, {passive: true});
 $('#reader').addEventListener('close', () => { document.body.classList.remove('reading'); currentNote = null; document.title = '인사이트 서재 — 장인우의 기록'; if (location.hash.startsWith('#note/')) history.replaceState(null, '', location.pathname + location.search); if (openingElement?.isConnected) openingElement.focus({preventScroll: true}); });
 document.addEventListener('keydown', e => { if (e.key === '/' && !$('#reader').open && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) { e.preventDefault(); $('#search').focus(); } });
-// ── 새 소식 추가: needs scripts/serve.py (same origin, or 127.0.0.1:8000 when opened elsewhere) ──
+// ── 새 소식 추가: needs scripts/serve.py (same origin, or 127.0.0.1:8005 when opened elsewhere) ──
 // Adding, AI drafts and editing run only on this computer (scripts/serve.py). The published site is read-only.
 const isLocal = location.protocol === 'file:' || ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 if (!isLocal) document.querySelectorAll('#nav-add, [data-view="mypage"]').forEach(el => el.remove());
-const apiBases = location.protocol.startsWith('http') ? ['', 'http://127.0.0.1:8000'] : ['http://127.0.0.1:8000'];
+const apiBases = location.protocol.startsWith('http') ? ['', 'http://127.0.0.1:8005'] : ['http://127.0.0.1:8005'];
 let apiBase = null;
 async function findApi() {
   if (!isLocal) return null;

@@ -5,5 +5,5 @@ if [ ! -x .venv/bin/python ]; then
   python3 -m venv .venv && .venv/bin/pip -q install -r requirements.txt
 fi
 .venv/bin/python scripts/build.py
-(sleep 1; open "http://127.0.0.1:8000/index.html") &
-.venv/bin/python scripts/serve.py 8000
+(sleep 1; open "http://127.0.0.1:8005/index.html") &
+.venv/bin/python scripts/serve.py 8005
